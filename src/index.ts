@@ -66,6 +66,7 @@ export interface Options {
   originalSchema: boolean
   serialization: boolean
   validation: boolean
+  validationModule: string
   $refOptions: $RefOptions
 }
 
@@ -97,6 +98,7 @@ export const DEFAULT_OPTIONS: Options = {
   unreachableDefinitions: false,
   serialization: true,
   validation: true,
+  validationModule: 'schema-common',
   unknownAny: true
 }
 

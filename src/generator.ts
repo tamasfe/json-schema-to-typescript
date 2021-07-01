@@ -84,14 +84,15 @@ export function parseJson${ast.standaloneName}(json: string, validate = true): $
 }
 
 function declareValidation(ast: AST, options: Options): string {
-  if (!options.originalSchema || !options.validation || !hasSchema(ast)) {
+  if (!options.originalSchema || !options.validation || !hasSchema(ast) || !hasStandaloneName(ast)) {
     return ''
   }
 
-  const schemaFnName = hasStandaloneName(ast) ? `schemaOf${ast.standaloneName}` : 'schema'
+  const schemaFnName = `schemaOf${ast.standaloneName}`
 
-  return `import __Ajv, { ErrorObject as AjvErrorObject } from "ajv";
+  return `import __Ajv, { ErrorObject as AjvErrorObject, ValidateFunction as __ValidateFunction } from "ajv";
 import __addFormats from "ajv-formats";
+import { getAjv as __getAjv, addInit as __addInit } from "${options.validationModule}";
 
 /**
  * An error thrown if schema validation fails during JSON (de)serialization.
@@ -102,21 +103,28 @@ export class AjvValidationError extends Error {
   }
 }
 
-/**
- * Validate a ${ast.standaloneName ?? ''} value.
- */
-export const isValid${ast.standaloneName ?? ''} = (() => {
-  const ajv = new __Ajv();
-  __addFormats(ajv as any);
-  return ajv.compile<${ast.standaloneName}>(${schemaFnName}());
-})();
+let __validate: __ValidateFunction<${ast.standaloneName}>;
+__addInit(
+  async function __validationInit() {
+    __validate = await __getAjv().compileAsync(${schemaFnName}());
+  }
+);
 
-// For internal use.
-const __validate = (() => {
-  const ajv = new __Ajv();
-  __addFormats(ajv as any);
-  return ajv.compile<${ast.standaloneName}>(${schemaFnName}());
-})();`
+/**
+ * Return the internally used Ajv validation function.
+ */ 
+export function getValidateFunction(): __ValidateFunction<${ast.standaloneName}> | undefined {
+  return __validate;
+} 
+
+/**
+ * Validate a ${ast.standaloneName} value.
+ * 
+ * @throws if not initialized.
+ */
+export function is${ast.standaloneName}(value: any): value is ${ast.standaloneName} {
+  return __validate(value);
+}`
 }
 
 function declareJsonSchemaImport(_ast: AST, options: Options): string {
