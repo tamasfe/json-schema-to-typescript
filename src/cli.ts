@@ -9,6 +9,7 @@ import isGlob = require('is-glob')
 import {join, resolve, dirname, basename} from 'path'
 import {compile, Options} from './index'
 import {pathTransform, error} from './utils'
+import yaml from 'js-yaml'
 
 main(
   minimist(process.argv.slice(2), {
@@ -54,6 +55,20 @@ async function main(argv: minimist.ParsedArgs) {
   }
 }
 
+declare global {
+  interface String {
+    trimSuffix(suffix: string): string
+  }
+}
+
+String.prototype.trimSuffix = function (suffix) {
+  if (this.endsWith(suffix)) {
+    return this.substring(0, this.length - suffix.length)
+  }
+
+  return this as string
+}
+
 // check if path is an existing directory
 function isDir(path: string): boolean {
   return existsSync(path) && lstatSync(path).isDirectory()
@@ -75,9 +90,11 @@ async function processGlob(argIn: string, argOut: string | undefined, argv: Part
     })
   )
 
+  const ext = argv.originalSchema ?? true ? '.ts' : '.d.ts'
+
   // careful to do this serially
   results.forEach(([file, result]) => {
-    const outputPath = argOut && `${argOut}/${basename(file, '.json')}.d.ts`
+    const outputPath = argOut && `${argOut}/${basename(file, '.json').trimSuffix('.yaml').trimSuffix('.yml')}${ext}`
     outputResult(result, outputPath)
   })
 }
@@ -97,9 +114,14 @@ async function processDir(argIn: string, argOut: string | undefined, argv: Parti
     })
   )
 
+  const ext = argv.originalSchema ?? true ? '.ts' : '.d.ts'
+
   // careful to do this serially
   results.forEach(([file, result, outputPath]) =>
-    outputResult(result, outputPath ? `${outputPath}/${basename(file, '.json')}.d.ts` : undefined)
+    outputResult(
+      result,
+      outputPath ? `${outputPath}/${basename(file, '.json').trimSuffix('.yaml').trimSuffix('.yml')}${ext}` : undefined
+    )
   )
 }
 
@@ -115,7 +137,8 @@ async function outputResult(result: string, outputPath: string | undefined): Pro
 }
 
 async function processFile(argIn: string, argv: Partial<Options>): Promise<string> {
-  const schema = JSON.parse(await readInput(argIn))
+  const schema = argIn.endsWith('.json') ? JSON.parse(await readInput(argIn)) : yaml.load(await readInput(argIn))
+  argv.cwd = dirname(argIn)
   return compile(schema, argIn, argv)
 }
 
@@ -133,6 +156,7 @@ function readInput(argIn?: string) {
   if (!argIn) {
     return getStdin()
   }
+
   return readFile(resolve(process.cwd(), argIn), 'utf-8')
 }
 

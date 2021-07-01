@@ -12,7 +12,8 @@ import {
   TIntersection,
   TNamedInterface,
   TUnion,
-  T_UNKNOWN
+  T_UNKNOWN,
+  hasSchema
 } from './types/AST'
 import {log, toSafeString} from './utils'
 
@@ -20,13 +21,129 @@ export function generate(ast: AST, options = DEFAULT_OPTIONS): string {
   return (
     [
       options.bannerComment,
+      declareJsonSchemaImport(ast, options),
       declareNamedTypes(ast, options, ast.standaloneName!),
       declareNamedInterfaces(ast, options, ast.standaloneName!),
-      declareEnums(ast, options)
+      declareEnums(ast, options),
+      declareOriginalSchema(ast, options),
+      declareValidation(ast, options),
+      declareSerialize(ast, options),
+      declareDeserialize(ast, options)
     ]
       .filter(Boolean)
       .join('\n\n') + '\n'
   ) // trailing newline
+}
+
+function declareSerialize(ast: AST, options: Options): string {
+  if (!options.originalSchema || !options.validation || !options.serialization || !hasStandaloneName(ast)) {
+    return ''
+  }
+
+  return `/**
+* Encode the given ${ast.standaloneName} value to JSON.
+* 
+* Validation is disabled by default, enable it if the value is not trusted.
+*
+* @throws {AjvValidationError}
+* @throws Any other JSON parse error.
+*/
+export function encodeJson${ast.standaloneName}(value: ${ast.standaloneName}, validate = false): string {
+    if (validate) {
+      __validate(value);
+      if (__validate.errors) {
+        throw new AjvValidationError(__validate.errors);
+      }
+    }
+    
+    return JSON.stringify(value); }`
+}
+
+function declareDeserialize(ast: AST, options: Options): string {
+  if (!options.originalSchema || !options.validation || !options.serialization || !hasStandaloneName(ast)) {
+    return ''
+  }
+
+  return `/**
+* Parse the given JSON string to a ${ast.standaloneName} value.
+* 
+* @throws {AjvValidationError}
+* @throws Any other JSON parse error.
+*/
+export function parseJson${ast.standaloneName}(json: string, validate = true): ${ast.standaloneName} {
+    const value = JSON.parse(json);
+    if (validate) {
+      __validate(value);
+      if (__validate.errors) {
+        throw new AjvValidationError(__validate.errors);
+      }
+    }
+    
+    return value;
+}`
+}
+
+function declareValidation(ast: AST, options: Options): string {
+  if (!options.originalSchema || !options.validation || !hasSchema(ast)) {
+    return ''
+  }
+
+  const schemaFnName = hasStandaloneName(ast) ? `schemaOf${ast.standaloneName}` : 'schema'
+
+  return `import __Ajv, { ErrorObject as AjvErrorObject } from "ajv";
+import __addFormats from "ajv-formats";
+
+/**
+ * An error thrown if schema validation fails during JSON (de)serialization.
+ */
+export class AjvValidationError extends Error {
+  constructor(public errors: Array<AjvErrorObject>) {
+    super("schema validation failed")
+  }
+}
+
+/**
+ * Validate a ${ast.standaloneName ?? ''} value.
+ */
+export const isValid${ast.standaloneName ?? ''} = (() => {
+  const ajv = new __Ajv();
+  __addFormats(ajv as any);
+  return ajv.compile<${ast.standaloneName}>(${schemaFnName}());
+})();
+
+// For internal use.
+const __validate = (() => {
+  const ajv = new __Ajv();
+  __addFormats(ajv as any);
+  return ajv.compile<${ast.standaloneName}>(${schemaFnName}());
+})();`
+}
+
+function declareJsonSchemaImport(_ast: AST, options: Options): string {
+  if (!options.originalSchema) {
+    return ''
+  }
+
+  return `import { JSONSchema7 } from "json-schema"`
+}
+
+function declareOriginalSchema(ast: AST, options: Options): string {
+  if (!options.originalSchema) {
+    return ''
+  }
+
+  const fnName = hasStandaloneName(ast) ? `schemaOf${ast.standaloneName}` : 'schema'
+
+  const comment = hasStandaloneName(ast) ? `JSON schema for ${ast.standaloneName}.` : 'The original JSON schema.'
+
+  if (hasSchema(ast) && ast.originalSchema) {
+    return `/**
+* ${comment}
+*/
+export function ${fnName}(): JSONSchema7 { return ${JSON.stringify(ast.originalSchema)}; }`
+  }
+
+  return ''
 }
 
 function declareEnums(ast: AST, options: Options, processed = new Set<AST>()): string {

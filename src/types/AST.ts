@@ -1,4 +1,4 @@
-import {JSONSchema4Type} from 'json-schema'
+import {JSONSchema4, JSONSchema4Type} from 'json-schema'
 
 export type AST_TYPE = AST['type']
 
@@ -25,12 +25,14 @@ export interface AbstractAST {
   comment?: string
   keyName?: string
   standaloneName?: string
+  originalSchema?: JSONSchema4
   type: AST_TYPE
 }
 
 export type ASTWithComment = AST & {comment: string}
 export type ASTWithName = AST & {keyName: string}
 export type ASTWithStandaloneName = AST & {standaloneName: string}
+export type ASTWithSchema = AST & {originalSchema: JSONSchema4}
 
 export function hasComment(ast: AST): ast is ASTWithComment {
   return 'comment' in ast && ast.comment != null && ast.comment !== ''
@@ -38,6 +40,10 @@ export function hasComment(ast: AST): ast is ASTWithComment {
 
 export function hasStandaloneName(ast: AST): ast is ASTWithStandaloneName {
   return 'standaloneName' in ast && ast.standaloneName != null && ast.standaloneName !== ''
+}
+
+export function hasSchema(ast: AST): ast is ASTWithSchema {
+  return 'originalSchema' in ast && ast.originalSchema != null && ast.originalSchema !== undefined
 }
 
 ////////////////////////////////////////////     types

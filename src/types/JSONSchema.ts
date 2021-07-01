@@ -38,6 +38,7 @@ export interface JSONSchema extends JSONSchema4 {
 export const Parent = Symbol('Parent')
 
 export interface LinkedJSONSchema extends JSONSchema {
+  originalSchema?: JSONSchema4
   /**
    * A reference to this schema's parent node, for convenience.
    * `null` when this is the root schema.
@@ -114,15 +115,13 @@ export interface CustomTypeJSONSchema extends NormalizedJSONSchema {
   tsType: string
 }
 
-export const getRootSchema = memoize(
-  (schema: LinkedJSONSchema): LinkedJSONSchema => {
-    const parent = schema[Parent]
-    if (!parent) {
-      return schema
-    }
-    return getRootSchema(parent)
+export const getRootSchema = memoize((schema: LinkedJSONSchema): LinkedJSONSchema => {
+  const parent = schema[Parent]
+  if (!parent) {
+    return schema
   }
-)
+  return getRootSchema(parent)
+})
 
 export function isPrimitive(schema: LinkedJSONSchema | JSONSchemaType): schema is JSONSchemaType {
   return !isPlainObject(schema)
