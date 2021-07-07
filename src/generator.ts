@@ -136,22 +136,32 @@ function declareJsonSchemaImport(_ast: AST, options: Options): string {
 }
 
 function declareOriginalSchema(ast: AST, options: Options): string {
-  if (!options.originalSchema) {
+  if (!options.originalSchema || !hasStandaloneName(ast) || !hasSchema(ast)) {
     return ''
   }
 
-  const fnName = hasStandaloneName(ast) ? `schemaOf${ast.standaloneName}` : 'schema'
+  const fnName = `schemaOf${ast.standaloneName}`
+  const refFnName = `refSchemaOf${ast.standaloneName}`
 
-  const comment = hasStandaloneName(ast) ? `JSON schema for ${ast.standaloneName}.` : 'The original JSON schema.'
+  const comment = `JSON schema for ${ast.standaloneName}.`
+  const refComment = `JSON reference schema that points to the schema of ${ast.standaloneName}.`
 
-  if (hasSchema(ast) && ast.originalSchema) {
-    return `/**
+  const id = ast.originalSchema.id ?? ast.originalSchema.$id
+
+  const refCode = id
+    ? `/**
+  * ${refComment}
+  */
+  export function ${refFnName}(): JSONSchema7 { return { $ref: ${JSON.stringify(id)} }; }`
+    : ''
+
+  return `const __schema = ${JSON.stringify(ast.originalSchema, null, 2)} as const;
+/**
 * ${comment}
 */
-export function ${fnName}(): JSONSchema7 { return ${JSON.stringify(ast.originalSchema)}; }`
-  }
+export function ${fnName}(): Readonly<typeof __schema> { return __schema; }
 
-  return ''
+${refCode}`
 }
 
 function declareEnums(ast: AST, options: Options, processed = new Set<AST>()): string {

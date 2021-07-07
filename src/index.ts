@@ -63,6 +63,7 @@ export interface Options {
   /**
    * [$RefParser](https://github.com/BigstickCarpet/json-schema-ref-parser) Options, used when resolving `$ref`s
    */
+  root: string | undefined
   originalSchema: boolean
   serialization: boolean
   validation: boolean
@@ -82,7 +83,7 @@ export const DEFAULT_OPTIONS: Options = {
   cwd: process.cwd(),
   declareExternallyReferenced: true,
   enableConstEnums: true,
-  format: true,
+  format: false,
   ignoreMinAndMaxItems: false,
   strictIndexSignatures: false,
   style: {
@@ -94,6 +95,7 @@ export const DEFAULT_OPTIONS: Options = {
     trailingComma: 'none',
     useTabs: false
   },
+  root: undefined,
   originalSchema: true,
   unreachableDefinitions: false,
   serialization: true,
