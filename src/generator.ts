@@ -21,7 +21,6 @@ export function generate(ast: AST, options = DEFAULT_OPTIONS): string {
   return (
     [
       options.bannerComment,
-      declareJsonSchemaImport(ast, options),
       declareNamedTypes(ast, options, ast.standaloneName!),
       declareNamedInterfaces(ast, options, ast.standaloneName!),
       declareEnums(ast, options),
@@ -125,14 +124,6 @@ export function getValidateFunction(): __ValidateFunction<${ast.standaloneName}>
 export function is${ast.standaloneName}(value: any): value is ${ast.standaloneName} {
   return __validate(value);
 }`
-}
-
-function declareJsonSchemaImport(_ast: AST, options: Options): string {
-  if (!options.originalSchema) {
-    return ''
-  }
-
-  return `import { JSONSchema7 } from "json-schema"`
 }
 
 function declareOriginalSchema(ast: AST, options: Options): string {
