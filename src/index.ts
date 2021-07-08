@@ -63,7 +63,6 @@ export interface Options {
   /**
    * [$RefParser](https://github.com/BigstickCarpet/json-schema-ref-parser) Options, used when resolving `$ref`s
    */
-  root: string | undefined
   originalSchema: boolean
   serialization: boolean
   validation: boolean
@@ -95,7 +94,6 @@ export const DEFAULT_OPTIONS: Options = {
     trailingComma: 'none',
     useTabs: false
   },
-  root: undefined,
   originalSchema: true,
   unreachableDefinitions: false,
   serialization: true,
@@ -128,7 +126,19 @@ export async function compile(schema: JSONSchema4, name: string, options: Partia
     return `(${Date.now() - start}ms)`
   }
 
-  const originalSchema = options.originalSchema ?? true ? JSON.parse(JSON.stringify(schema)) : undefined
+  let originalSchema
+
+  if (schema.__root) {
+    const root = schema.__root
+    delete schema.__root
+
+    const schemaStr = JSON.stringify(schema)
+
+    // TODO: this might be unreliable in some cases
+    originalSchema = JSON.parse(schemaStr.replaceAll(root.temporary, root.final))
+  } else if (options.originalSchema ?? true) {
+    originalSchema = JSON.parse(JSON.stringify(schema))
+  }
 
   const errors = validate(schema, name)
   if (errors.length) {
