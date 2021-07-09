@@ -69,7 +69,10 @@ function declareDeserialize(ast: AST, options: Options): string {
 * @throws {AjvValidationError}
 * @throws Any other JSON parse error.
 */
-export function parseJson${ast.standaloneName}(json: string, validate = true): ${ast.standaloneName} {
+export function parseJson${ast.standaloneName}(json: string | Buffer, validate = true): ${ast.standaloneName} {
+    if (json instanceof Buffer) {
+      json = json.toString("utf-8");
+    }
     const value = JSON.parse(json);
     if (validate) {
       __validate(value);
